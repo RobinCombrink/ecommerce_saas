@@ -1,0 +1,28 @@
+CREATE TABLE Products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT,
+    price REAL NOT NULL
+);
+
+CREATE TABLE Orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+    paid INTEGER NOT NULL,
+    customerId INTEGER NOT NULL,
+    total REAL NOT NULL,
+    FOREIGN KEY (customerId) REFERENCES Customers(id)
+);
+
+CREATE TABLE OrderItems (
+    id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+    orderId INTEGER NOT NULL,
+    productId INTEGER NOT NULL,
+    FOREIGN KEY (orderId) REFERENCES Orders(id),
+    FOREIGN KEY (productId) REFERENCES Products(id)
+);
+
+CREATE TABLE Customers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL
+);
