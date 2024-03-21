@@ -5,12 +5,13 @@ cloud:
     hostname: ""
 sql:
   - engine: "sqlite"
-    schema: "./schema.sql"
-    queries: "./query.sql"
+    schema: "./database/sql/schema.sql"
+    queries: "./database/sql/query.sql"
     gen:
       go:
         package: "database"
-        out: "./database/models"
+        out: "./database"
+        query_parameter_limit: 5
 plugins: []
 rules: []
 options: {}

@@ -7,7 +7,26 @@ package database
 
 import (
 	"context"
+	"database/sql"
 )
+
+const createProduct = `-- name: CreateProduct :one
+INSERT INTO Products (name, description, price)
+VALUES (?, ?, ?)
+RETURNING id, name, description, price
+`
+
+func (q *Queries) CreateProduct(ctx context.Context, name string, description sql.NullString, price float64) (Product, error) {
+	row := q.db.QueryRowContext(ctx, createProduct, name, description, price)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.Price,
+	)
+	return i, err
+}
 
 const getProduct = `-- name: GetProduct :one
 SELECT id, name, description, price FROM Products
