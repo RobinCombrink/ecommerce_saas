@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	database "github.com/RobinCombrink/ecommerce_saas/database/models"
+	database "github.com/RobinCombrink/ecommerce_saas/database"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/mattn/go-sqlite3"
@@ -22,9 +22,6 @@ const dateLayout string = "2006-01-02"
 // TODO: Make it non global
 var queries *database.Queries
 
-//go:embed schema.sql
-var ddl string
-
 func SetupHttpServer() {
 	instance := echo.New()
 	instance.Pre(middleware.RemoveTrailingSlash())
@@ -36,20 +33,8 @@ func SetupHttpServer() {
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
 	}))
-	// db, err := sql.Open("sqlite3", "database.db")
-	db, err := sql.Open("sqlite3", ":memory:")
-	if err != nil {
-		log.Fatalf("Could not open database: %s", err)
-	}
-	ctx := context.Background()
-
-	// create tables
-	if _, err := db.ExecContext(ctx, ddl); err != nil {
-		//TODO: Handle better
-		log.Printf("Could not create tables: %s", err)
-	}
-
-	queries = database.New(db)
+	
+	queries = database.New(database.Setup())
 
 	setupRoutes(instance)
 	instance.Logger.Fatal(instance.Start(serverIp + ":" + serverPort))
@@ -58,6 +43,7 @@ func SetupHttpServer() {
 
 func setupRoutes(instance *echo.Echo) {
 	instance.GET("/product/:id", getProduct)
+	instance.POST("/product", postProduct)
 }
 
 func getProduct(c echo.Context) error {
@@ -78,4 +64,21 @@ func getProduct(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, "Internal Server error")
 	}
 	return c.JSON(http.StatusOK, product)
+}
+
+func postProduct(c echo.Context) error {
+	product := new(database.Product)
+	if err := c.Bind(product); err != nil {
+		//TODO: Differentiate better
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	ctx := context.Background()
+	insertedProduct, err := queries.CreateProduct(ctx, product.Name, product.Description, product.Price)
+	if err != nil {
+		log.Fatalf("Unable to create product: %v\n", err)
+		//TODO
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+
+	return c.JSON(http.StatusCreated, insertedProduct)
 }
