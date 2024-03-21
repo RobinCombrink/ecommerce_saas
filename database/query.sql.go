@@ -7,7 +7,7 @@ package database
 
 import (
 	"context"
-	"database/sql"
+	"strings"
 )
 
 const createProduct = `-- name: CreateProduct :one
@@ -16,8 +16,14 @@ VALUES (?, ?, ?)
 RETURNING id, name, description, price
 `
 
-func (q *Queries) CreateProduct(ctx context.Context, name string, description sql.NullString, price float64) (Product, error) {
-	row := q.db.QueryRowContext(ctx, createProduct, name, description, price)
+type CreateProductParams struct {
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	Price       float64 `json:"price"`
+}
+
+func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error) {
+	row := q.db.QueryRowContext(ctx, createProduct, arg.Name, arg.Description, arg.Price)
 	var i Product
 	err := row.Scan(
 		&i.ID,
@@ -26,6 +32,50 @@ func (q *Queries) CreateProduct(ctx context.Context, name string, description sq
 		&i.Price,
 	)
 	return i, err
+}
+
+const deleteProducts = `-- name: DeleteProducts :many
+DELETE FROM Products
+WHERE id IN (/*SLICE:ids*/?)
+RETURNING id, name, description, price
+`
+
+func (q *Queries) DeleteProducts(ctx context.Context, ids []int64) ([]Product, error) {
+	query := deleteProducts
+	var queryParams []interface{}
+	if len(ids) > 0 {
+		for _, v := range ids {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:ids*/?", strings.Repeat(",?", len(ids))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:ids*/?", "NULL", 1)
+	}
+	rows, err := q.db.QueryContext(ctx, query, queryParams...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Product
+	for rows.Next() {
+		var i Product
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.Price,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getProduct = `-- name: GetProduct :one

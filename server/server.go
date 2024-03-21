@@ -21,6 +21,7 @@ const dateLayout string = "2006-01-02"
 
 // TODO: Make it non global
 var queries *database.Queries
+var db *sql.DB
 
 func SetupHttpServer() {
 	instance := echo.New()
@@ -33,8 +34,9 @@ func SetupHttpServer() {
 		AllowOrigins: []string{"*"},
 		AllowMethods: []string{echo.GET, echo.PUT, echo.POST, echo.DELETE},
 	}))
-	
-	queries = database.New(database.Setup())
+
+	db = database.Setup()
+	queries = database.New(db)
 
 	setupRoutes(instance)
 	instance.Logger.Fatal(instance.Start(serverIp + ":" + serverPort))
@@ -43,7 +45,8 @@ func SetupHttpServer() {
 
 func setupRoutes(instance *echo.Echo) {
 	instance.GET("/product/:id", getProduct)
-	instance.POST("/product", postProduct)
+	instance.POST("/product", createProduct)
+	instance.POST("/remove-products", deleteProduct)
 }
 
 func getProduct(c echo.Context) error {
@@ -66,14 +69,14 @@ func getProduct(c echo.Context) error {
 	return c.JSON(http.StatusOK, product)
 }
 
-func postProduct(c echo.Context) error {
-	product := new(database.Product)
+func createProduct(c echo.Context) error {
+	product := new(database.CreateProductParams)
 	if err := c.Bind(product); err != nil {
 		//TODO: Differentiate better
 		return c.JSON(http.StatusBadRequest, err)
 	}
 	ctx := context.Background()
-	insertedProduct, err := queries.CreateProduct(ctx, product.Name, product.Description, product.Price)
+	insertedProduct, err := queries.CreateProduct(ctx, *product)
 	if err != nil {
 		log.Fatalf("Unable to create product: %v\n", err)
 		//TODO
@@ -81,4 +84,33 @@ func postProduct(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, insertedProduct)
+}
+
+func deleteProduct(c echo.Context) error {
+	productIds := make([]int64, 0)
+	if err := c.Bind(productIds); err != nil {
+		//TODO: Differentiate better
+		return c.JSON(http.StatusBadRequest, err)
+	}
+	ctx := context.Background()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	qtx := queries.WithTx(tx)
+	deletedProducts, err := qtx.DeleteProducts(ctx, productIds)
+	if err != nil {
+		log.Fatalf("Unable to delete products: %v\n", err)
+		//TODO
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	err = tx.Commit()
+	if err != nil {
+		log.Fatalf("Unable to delete products, rolling back: %v\n", err)
+		//TODO
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusCreated, deletedProducts)
 }

@@ -8,4 +8,9 @@ SELECT * FROM Products;
 -- name: CreateProduct :one
 INSERT INTO Products (name, description, price)
 VALUES (?, ?, ?)
-RETURNING id, name, description, price;
+RETURNING *;
+
+-- name: DeleteProducts :many
+DELETE FROM Products
+WHERE id IN (sqlc.slice('ids'))
+RETURNING *;

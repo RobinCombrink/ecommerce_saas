@@ -4,32 +4,30 @@
 
 package database
 
-import (
-	"database/sql"
-)
+import ()
 
 type Customer struct {
-	ID    int64
-	Name  string
-	Email string
+	ID    int64  `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
 type Order struct {
-	ID         int64
-	Paid       int64
-	Customerid int64
-	Total      float64
+	ID         int64   `json:"id"`
+	Paid       int64   `json:"paid"`
+	Customerid int64   `json:"customerid"`
+	Total      float64 `json:"total"`
 }
 
 type OrderItem struct {
-	ID        int64
-	Orderid   int64
-	Productid int64
+	ID        int64 `json:"id"`
+	Orderid   int64 `json:"orderid"`
+	Productid int64 `json:"productid"`
 }
 
 type Product struct {
-	ID          int64
-	Name        string
-	Description sql.NullString
-	Price       float64
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	Price       float64 `json:"price"`
 }
